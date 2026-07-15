@@ -1,0 +1,96 @@
+name: Diagnose live browser state
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  diagnose-browser:
+    if: github.event.pull_request.head.ref == 'live-audit-trigger'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser quietly
+        shell: bash
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --silent playwright@1.55.0
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: Capture actual browser state
+        shell: bash
+        env:
+          DEPLOY_URL: https://russelldudek.github.io/XTIUM/
+        run: |
+          cat > /tmp/browser-diagnostic.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const base = process.env.DEPLOY_URL;
+          const browser = await chromium.launch({ headless: true });
+          const lines = [];
+          for (const [name, width, height] of [['desktop',1440,900],['laptop',1280,800],['tablet',768,1024],['mobile',390,844]]) {
+            const context = await browser.newContext({ viewport: { width, height } });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('console', m => { if (m.type() === 'error') errors.push(`console:${m.text()}`); });
+            page.on('pageerror', e => errors.push(`pageerror:${e.message}`));
+            const response = await page.goto(base, { waitUntil: 'networkidle' });
+            const actual = await page.evaluate(() => {
+              const body = getComputedStyle(document.body);
+              const hero = getComputedStyle(document.querySelector('.hero'));
+              const heading = getComputedStyle(document.querySelector('.hero h1'));
+              const nav = getComputedStyle(document.querySelector('.site-nav'));
+              return {
+                title: document.title,
+                fontFamily: body.fontFamily,
+                heroDisplay: hero.display,
+                heroMinHeight: hero.minHeight,
+                headingSize: heading.fontSize,
+                navPosition: nav.position,
+                styleSheets: [...document.styleSheets].map(s => s.href || 'inline'),
+                scrollWidth: document.documentElement.scrollWidth,
+                clientWidth: document.documentElement.clientWidth,
+                readyState: document.readyState
+              };
+            });
+            lines.push(`${name} status=${response?.status()} actual=${JSON.stringify(actual)} errors=${JSON.stringify(errors)}`);
+            if (name === 'desktop') {
+              const tabs = await page.getByRole('tab').allTextContents();
+              const before = await page.locator('#scenario-title').textContent();
+              let clickError = null;
+              try { await page.getByRole('tab', { name: 'Managed AI agent' }).click(); } catch (error) { clickError = error.message; }
+              const after = await page.locator('#scenario-title').textContent();
+              lines.push(`interaction tabs=${JSON.stringify(tabs)} before=${JSON.stringify(before)} after=${JSON.stringify(after)} clickError=${JSON.stringify(clickError)}`);
+            }
+            await context.close();
+          }
+          const reduced = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+          const reducedPage = await reduced.newPage();
+          await reducedPage.goto(base, { waitUntil: 'networkidle' });
+          const reducedActual = await reducedPage.locator('.plate').first().evaluate(el => ({transitionDuration:getComputedStyle(el).transitionDuration,transform:getComputedStyle(el).transform}));
+          lines.push(`reduced=${JSON.stringify(reducedActual)}`);
+          await reduced.close();
+          await browser.close();
+          fs.writeFileSync('browser-diagnostic.txt', lines.join('\n') + '\n');
+          console.log(lines.join('\n'));
+          EOF
+          node /tmp/browser-diagnostic.mjs
+      - name: Upload browser diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-diagnostic
+          path: browser-diagnostic.txt
+          if-no-files-found: error
