@@ -1,0 +1,169 @@
+name: Verify live candidate vision
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  verify-live:
+    if: github.event.pull_request.head.ref == 'live-audit-trigger'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Verify current main source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v pdfinfo >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y poppler-utils
+          fi
+          python scripts/publication_qa.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser
+        shell: bash
+        run: |
+          npm init -y
+          npm install playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Verify live files and computed CSS
+        shell: bash
+        env:
+          DEPLOY_URL: https://russelldudek.github.io/XTIUM/
+        run: |
+          cat > /tmp/live-verification.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+
+          const base = process.env.DEPLOY_URL;
+          const files = [
+            'index.html',
+            'styles.css',
+            'brand-tokens.css',
+            'app.js',
+            'assets/brand/xtium-logo.svg',
+            'resume.html',
+            'cover-letter.html',
+            'interview-brief.html',
+            '120-day-plan.html',
+            'service-definition-canvas.html',
+            'docs/Russell-Dudek-XTIUM-Resume.pdf',
+            'docs/Russell-Dudek-XTIUM-Relationship-Letter.pdf',
+            'docs/Russell-Dudek-XTIUM-Interview-Brief.pdf',
+            'docs/Russell-Dudek-XTIUM-120-Day-Plan.pdf',
+            'docs/XTIUM-AI-Enabled-Service-Definition-Canvas.pdf'
+          ];
+          const viewports = [
+            ['desktop', 1440, 900],
+            ['laptop', 1280, 800],
+            ['tablet', 768, 1024],
+            ['mobile', 390, 844]
+          ];
+          const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+          const assert = (condition, message) => { if (!condition) throw new Error(message); };
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+          fs.mkdirSync('live-audit-screenshots', { recursive: true });
+          const browser = await chromium.launch({ headless: true });
+          const requestContext = await browser.newContext();
+
+          let synchronized = false;
+          for (let attempt = 1; attempt <= 30; attempt += 1) {
+            const response = await requestContext.request.get(new URL('styles.css', base).href, { failOnStatusCode: false });
+            if (response.status() === 200) {
+              const live = await response.body();
+              const local = fs.readFileSync('styles.css');
+              if (sha256(live) === sha256(local)) {
+                synchronized = true;
+                break;
+              }
+            }
+            await sleep(6000);
+          }
+          assert(synchronized, 'GitHub Pages did not synchronize styles.css with current main');
+
+          for (const file of files) {
+            const response = await requestContext.request.get(new URL(file, base).href, { failOnStatusCode: false });
+            assert(response.status() === 200, `${file} returned ${response.status()}`);
+            const live = await response.body();
+            const local = fs.readFileSync(file);
+            assert(sha256(live) === sha256(local), `${file} does not byte-match current main`);
+            if (file.endsWith('.pdf')) {
+              assert((response.headers()['content-type'] || '').includes('application/pdf'), `${file} is not served as application/pdf`);
+              assert(live.subarray(0, 4).toString() === '%PDF', `${file} lacks PDF signature`);
+            }
+          }
+
+          for (const [name, width, height] of viewports) {
+            const context = await browser.newContext({ viewport: { width, height } });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+            page.on('pageerror', error => errors.push(error.message));
+            const response = await page.goto(base, { waitUntil: 'networkidle' });
+            assert(response && response.status() === 200, `${name}: live index failed`);
+            const computed = await page.evaluate(() => {
+              const body = getComputedStyle(document.body);
+              const hero = getComputedStyle(document.querySelector('.hero'));
+              const heading = getComputedStyle(document.querySelector('.hero h1'));
+              const nav = getComputedStyle(document.querySelector('.site-nav'));
+              return {
+                fontFamily: body.fontFamily,
+                heroDisplay: hero.display,
+                headingSize: parseFloat(heading.fontSize),
+                navPosition: nav.position,
+                styleSheets: [...document.styleSheets].map(sheet => sheet.href || 'inline'),
+                scrollWidth: document.documentElement.scrollWidth,
+                clientWidth: document.documentElement.clientWidth
+              };
+            });
+            assert(!computed.fontFamily.toLowerCase().includes('times new roman'), `${name}: default typography indicates missing CSS`);
+            assert(computed.heroDisplay === 'grid', `${name}: hero layout CSS did not apply`);
+            assert(computed.headingSize >= 48, `${name}: hero heading is unstyled at ${computed.headingSize}px`);
+            assert(computed.navPosition === 'sticky', `${name}: navigation CSS did not apply`);
+            assert(computed.styleSheets.some(href => href.includes('styles.css')), `${name}: styles.css is missing from document.styleSheets`);
+            assert(computed.scrollWidth <= computed.clientWidth + 1, `${name}: horizontal overflow ${computed.scrollWidth} > ${computed.clientWidth}`);
+            assert(errors.length === 0, `${name}: runtime errors: ${errors.join(' | ')}`);
+            await page.screenshot({ path: `live-audit-screenshots/index-${name}.png`, fullPage: true });
+            if (name === 'desktop') {
+              const before = await page.locator('#scenario-title').textContent();
+              await page.getByRole('tab', { name: 'Managed AI agent' }).click();
+              const after = await page.locator('#scenario-title').textContent();
+              assert(before !== after && after.includes('Managed AI agent'), 'interactive operating model did not change state');
+            }
+            await context.close();
+          }
+
+          const reduced = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+          const reducedPage = await reduced.newPage();
+          await reducedPage.goto(base, { waitUntil: 'networkidle' });
+          const transition = await reducedPage.locator('.plate').first().evaluate(element => getComputedStyle(element).transitionDuration);
+          assert(transition === '0s', `reduced motion did not disable plate transition: ${transition}`);
+          await reduced.close();
+          await requestContext.close();
+          await browser.close();
+          console.log(`Exact-main live verification passed for ${base}`);
+          EOF
+          node /tmp/live-verification.mjs
+      - name: Upload verified live screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-live-screenshots
+          path: live-audit-screenshots
+          if-no-files-found: error
