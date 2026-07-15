@@ -1,0 +1,1 @@
+This temporary branch carries the approved Service Translation Spine repair package. The protected workflow reconstructs, verifies, and commits only the tested source files; this note is removed during materialization.
