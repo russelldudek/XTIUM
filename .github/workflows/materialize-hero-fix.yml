@@ -18,7 +18,7 @@ env:
 
 jobs:
   materialize:
-    if: github.event.pull_request.head.ref == 'hero-translation-fix' && github.event.pull_request.head.sha == '39206ac9093890b456cb8e1bcd1d006e0e1568be'
+    if: github.event.pull_request.head.ref == 'hero-translation-fix' && github.event.pull_request.head.sha == '8a73a9203dff1fe9dff211d60ab2e9f20cabc179'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
