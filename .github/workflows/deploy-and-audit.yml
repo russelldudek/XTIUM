@@ -1,0 +1,183 @@
+name: Deploy and audit candidate vision
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify committed campaign
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v pdfinfo >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y poppler-utils
+          fi
+          python scripts/publication_qa.py
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  audit:
+    needs: deploy
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_URL: ${{ needs.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser
+        shell: bash
+        run: |
+          npm init -y
+          npm install playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Audit live routes, computed CSS, interaction, and downloads
+        shell: bash
+        run: |
+          cat > /tmp/live-audit.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const base = process.env.DEPLOY_URL.endsWith('/') ? process.env.DEPLOY_URL : `${process.env.DEPLOY_URL}/`;
+          const htmlRoutes = ['', 'resume.html', 'cover-letter.html', 'interview-brief.html', '120-day-plan.html', 'service-definition-canvas.html'];
+          const assets = ['styles.css', 'brand-tokens.css', 'app.js', 'assets/brand/xtium-logo.svg'];
+          const pdfs = [
+            'docs/Russell-Dudek-XTIUM-Resume.pdf',
+            'docs/Russell-Dudek-XTIUM-Relationship-Letter.pdf',
+            'docs/Russell-Dudek-XTIUM-Interview-Brief.pdf',
+            'docs/Russell-Dudek-XTIUM-120-Day-Plan.pdf',
+            'docs/XTIUM-AI-Enabled-Service-Definition-Canvas.pdf'
+          ];
+          const viewports = [
+            ['desktop', 1440, 900],
+            ['laptop', 1280, 800],
+            ['tablet', 768, 1024],
+            ['mobile', 390, 844]
+          ];
+
+          function assert(condition, message) {
+            if (!condition) throw new Error(message);
+          }
+
+          fs.mkdirSync('audit-screenshots', { recursive: true });
+          const browser = await chromium.launch({ headless: true });
+          const request = await browser.newContext();
+
+          for (const route of [...htmlRoutes, ...assets]) {
+            const response = await request.request.get(new URL(route, base).href);
+            assert(response.status() === 200, `${route || 'index.html'} returned ${response.status()}`);
+          }
+          for (const route of pdfs) {
+            const response = await request.request.get(new URL(route, base).href);
+            assert(response.status() === 200, `${route} returned ${response.status()}`);
+            assert((response.headers()['content-type'] || '').includes('application/pdf'), `${route} is not application/pdf`);
+            const bytes = await response.body();
+            assert(bytes.subarray(0, 4).toString() === '%PDF', `${route} lacks PDF signature`);
+          }
+
+          const cssResponse = await request.request.get(new URL('styles.css', base).href);
+          const css = await cssResponse.text();
+          assert(css.includes('@import url("brand-tokens.css")'), 'styles.css does not import brand-tokens.css');
+          assert(css.includes('.hero{'), 'styles.css lacks hero rules');
+          const tokenResponse = await request.request.get(new URL('brand-tokens.css', base).href);
+          const tokens = await tokenResponse.text();
+          assert(tokens.includes('--xtium-teal'), 'brand tokens are not deployed');
+
+          for (const [name, width, height] of viewports) {
+            const context = await browser.newContext({ viewport: { width, height } });
+            const page = await context.newPage();
+            const runtimeErrors = [];
+            page.on('console', message => {
+              if (message.type() === 'error') runtimeErrors.push(message.text());
+            });
+            page.on('pageerror', error => runtimeErrors.push(error.message));
+            const response = await page.goto(base, { waitUntil: 'networkidle' });
+            assert(response && response.status() === 200, `${name}: live index failed`);
+            const computed = await page.evaluate(() => {
+              const body = getComputedStyle(document.body);
+              const hero = getComputedStyle(document.querySelector('.hero'));
+              const h1 = getComputedStyle(document.querySelector('.hero h1'));
+              const nav = getComputedStyle(document.querySelector('.site-nav'));
+              return {
+                fontFamily: body.fontFamily,
+                heroDisplay: hero.display,
+                heroMinHeight: hero.minHeight,
+                h1Size: parseFloat(h1.fontSize),
+                navPosition: nav.position,
+                sheetHrefs: [...document.styleSheets].map(sheet => sheet.href || 'inline'),
+                scrollWidth: document.documentElement.scrollWidth,
+                clientWidth: document.documentElement.clientWidth
+              };
+            });
+            assert(!computed.fontFamily.toLowerCase().includes('times new roman'), `${name}: browser-default typography indicates CSS did not apply`);
+            assert(computed.heroDisplay === 'grid', `${name}: hero CSS did not apply`);
+            assert(computed.h1Size >= 48, `${name}: hero typography is unstyled (${computed.h1Size}px)`);
+            assert(computed.navPosition === 'sticky', `${name}: navigation CSS did not apply`);
+            assert(computed.sheetHrefs.some(href => href.includes('styles.css')), `${name}: styles.css is absent from document.styleSheets`);
+            assert(computed.scrollWidth <= computed.clientWidth + 1, `${name}: horizontal overflow ${computed.scrollWidth} > ${computed.clientWidth}`);
+            assert(runtimeErrors.length === 0, `${name}: runtime errors: ${runtimeErrors.join(' | ')}`);
+            await page.screenshot({ path: `audit-screenshots/index-${name}.png`, fullPage: true });
+            if (name === 'desktop') {
+              const before = await page.locator('#scenario-title').textContent();
+              await page.getByRole('tab', { name: 'Managed AI agent' }).click();
+              const after = await page.locator('#scenario-title').textContent();
+              assert(before !== after && after.includes('Managed AI agent'), 'scenario interaction did not update the operating model');
+            }
+            await context.close();
+          }
+
+          const reduced = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+          const reducedPage = await reduced.newPage();
+          await reducedPage.goto(base, { waitUntil: 'networkidle' });
+          const transition = await reducedPage.locator('.plate').first().evaluate(element => getComputedStyle(element).transitionDuration);
+          assert(transition === '0s', `reduced motion did not disable plate transition: ${transition}`);
+          await reduced.close();
+          await request.close();
+          await browser.close();
+          console.log(`Live audit passed for ${base}`);
+          EOF
+          node /tmp/live-audit.mjs
+      - name: Upload live audit screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-audit-screenshots
+          path: audit-screenshots
+          if-no-files-found: error
