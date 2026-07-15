@@ -18,7 +18,7 @@ env:
 
 jobs:
   materialize:
-    if: github.event.pull_request.head.ref == 'hero-translation-fix' && github.event.pull_request.head.sha == '145fb8353cd9d070d5a254c28ab4696dba8d25a1'
+    if: github.event.pull_request.head.ref == 'hero-translation-fix' && github.event.pull_request.head.sha == 'cbf4919cb4f83b5d97bce396f4e5a71c4d244b2c'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +34,7 @@ jobs:
           unzip -t /tmp/xtium-fix.zip
           unzip -o /tmp/xtium-fix.zip -d .
           rm -rf .payload
+          rm -f hero-repair-trigger.txt
           if ! command -v pdfinfo >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install -y poppler-utils
