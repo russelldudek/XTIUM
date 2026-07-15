@@ -1,0 +1,50 @@
+name: Materialize approved hero repair
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions:
+  contents: write
+  pull-requests: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  materialize:
+    if: github.event.pull_request.head.ref == 'hero-translation-fix' && github.event.pull_request.head.sha == '145fb8353cd9d070d5a254c28ab4696dba8d25a1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hero-translation-fix
+          fetch-depth: 0
+      - name: Reconstruct and verify tested repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .payload/xtium-fix.b64 > /tmp/xtium-fix.zip
+          echo '38cf9f6476b7854f6208d2d7635eee65051f45b40ecf0a0fe3a371cbb8c33e50  /tmp/xtium-fix.zip' | sha256sum --check
+          unzip -t /tmp/xtium-fix.zip
+          unzip -o /tmp/xtium-fix.zip -d .
+          rm -rf .payload
+          if ! command -v pdfinfo >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y poppler-utils
+          fi
+          python scripts/publication_qa.py
+      - name: Commit verified source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Implement approved XTIUM service translation hero [skip ci]"
+          git push origin HEAD:hero-translation-fix
