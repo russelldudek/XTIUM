@@ -1,0 +1,72 @@
+name: Diagnose live publication
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  diagnose:
+    if: github.event.pull_request.head.ref == 'live-audit-trigger'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Compare live files with current main
+        id: compare
+        shell: bash
+        run: |
+          set +e
+          base='https://russelldudek.github.io/XTIUM/'
+          : > live-http-diagnostic.txt
+          printf 'checked_main=%s\n' "$(git rev-parse HEAD)" >> live-http-diagnostic.txt
+          printf 'base=%s\n' "$base" >> live-http-diagnostic.txt
+          local_index=$(sha256sum index.html | awk '{print $1}')
+          local_css=$(sha256sum styles.css | awk '{print $1}')
+          printf 'local_index_sha256=%s\n' "$local_index" >> live-http-diagnostic.txt
+          printf 'local_css_sha256=%s\n' "$local_css" >> live-http-diagnostic.txt
+          matched=0
+          for attempt in $(seq 1 20); do
+            index_status=$(curl -L -sS -o /tmp/live-index -w '%{http_code}' "${base}index.html")
+            css_status=$(curl -L -sS -o /tmp/live-css -w '%{http_code}' "${base}styles.css")
+            index_type=$(curl -L -sSI "${base}index.html" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print $2}' | tail -1)
+            css_type=$(curl -L -sSI "${base}styles.css" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print $2}' | tail -1)
+            live_index=$(sha256sum /tmp/live-index 2>/dev/null | awk '{print $1}')
+            live_css=$(sha256sum /tmp/live-css 2>/dev/null | awk '{print $1}')
+            printf 'attempt=%s index_status=%s css_status=%s index_type=%s css_type=%s live_index_sha256=%s live_css_sha256=%s\n' "$attempt" "$index_status" "$css_status" "$index_type" "$css_type" "$live_index" "$live_css" >> live-http-diagnostic.txt
+            if [ "$index_status" = 200 ] && [ "$css_status" = 200 ] && [ "$live_index" = "$local_index" ] && [ "$live_css" = "$local_css" ]; then
+              matched=1
+              break
+            fi
+            sleep 6
+          done
+          if [ "$matched" -ne 1 ]; then
+            printf '\nindex_response_prefix:\n' >> live-http-diagnostic.txt
+            head -c 500 /tmp/live-index >> live-http-diagnostic.txt 2>/dev/null
+            printf '\n\ncss_response_prefix:\n' >> live-http-diagnostic.txt
+            head -c 500 /tmp/live-css >> live-http-diagnostic.txt 2>/dev/null
+            printf '\n' >> live-http-diagnostic.txt
+          fi
+          cat live-http-diagnostic.txt
+          echo "matched=$matched" >> "$GITHUB_OUTPUT"
+      - name: Upload diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-http-diagnostic
+          path: live-http-diagnostic.txt
+          if-no-files-found: error
+      - name: Enforce exact-main match
+        if: steps.compare.outputs.matched != '1'
+        run: exit 1
