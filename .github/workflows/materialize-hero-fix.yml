@@ -18,23 +18,34 @@ env:
 
 jobs:
   materialize:
-    if: github.event.pull_request.head.ref == 'hero-translation-fix' && github.event.pull_request.head.sha == '3935d7ad5a6345b3bb9a6730f8859c764dab0c93'
+    if: github.event.pull_request.head.ref == 'hero-translation-fix' && github.event.pull_request.head.sha == '39206ac9093890b456cb8e1bcd1d006e0e1568be'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: hero-translation-fix
           fetch-depth: 0
-      - name: Reconstruct and verify tested repair
+      - name: Apply approved visual correction
         shell: bash
         run: |
           set -euo pipefail
-          base64 --decode .payload/xtium-fix.b64 > /tmp/xtium-fix.zip
-          echo '38cf9f6476b7854f6208d2d7635eee65051f45b40ecf0a0fe3a371cbb8c33e50  /tmp/xtium-fix.zip' | sha256sum --check
-          unzip -t /tmp/xtium-fix.zip
-          unzip -o /tmp/xtium-fix.zip -d .
+          python .payload/apply_hero_fix.py
           rm -rf .payload
           rm -f hero-repair-trigger.txt hero-repair-pr-note.md
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text(encoding='utf-8')
+          css = Path('styles.css').read_text(encoding='utf-8')
+          assert 'class="register translation-spine ready"' in html
+          assert html.count('class="spec-row"') == 8
+          assert 'Why the experience transfers' in html
+          assert 'class="objection"' not in html
+          footer = re.search(r'<footer class="footer">(.*?)</footer>', html, re.S)
+          assert footer and '<img' not in footer.group(1)
+          assert 'XTIUM SERVICE TRANSLATION SPINE' in css
+          print('Source-level hero repair checks passed.')
+          PY
           if ! command -v pdfinfo >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install -y poppler-utils
