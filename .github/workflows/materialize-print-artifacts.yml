@@ -1,0 +1,51 @@
+name: Materialize verified print artifacts
+
+on:
+  push:
+    branches:
+      - resume-canvas-density-fix
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: resume-canvas-density-fix
+          fetch-depth: 0
+      - name: Reconstruct and verify PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs
+          cat .pdf-payload/resume/chunk-*.b64 | base64 --decode > docs/Russell-Dudek-XTIUM-Resume.pdf
+          cat .pdf-payload/canvas/chunk-*.b64 | base64 --decode > docs/XTIUM-AI-Enabled-Service-Definition-Canvas.pdf
+          echo 'b428de50cc199b72fbedcc5136ca63e18deda43835b9c839c97a5ed54b140173  docs/Russell-Dudek-XTIUM-Resume.pdf' | sha256sum --check
+          echo '6ba33c39caa580b0204dc142b983c5959d2f7174b5ec7afe69f8a3e0a16a20b9  docs/XTIUM-AI-Enabled-Service-Definition-Canvas.pdf' | sha256sum --check
+          if ! command -v pdfinfo >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y poppler-utils
+          fi
+          test "$(pdfinfo docs/Russell-Dudek-XTIUM-Resume.pdf | awk '/^Pages:/{print $2}')" = "2"
+          test "$(pdfinfo docs/XTIUM-AI-Enabled-Service-Definition-Canvas.pdf | awk '/^Pages:/{print $2}')" = "1"
+          grep -q 'artifact-layout.css' resume.html
+          grep -q 'artifact-layout.css' service-definition-canvas.html
+          grep -q 'resume-grid' resume.html
+          grep -q 'canvas-grid' service-definition-canvas.html
+          python scripts/publication_qa.py
+      - name: Commit clean verified artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r .pdf-payload .github/workflows/materialize-print-artifacts.yml
+          git add docs/Russell-Dudek-XTIUM-Resume.pdf docs/XTIUM-AI-Enabled-Service-Definition-Canvas.pdf
+          git commit -m 'Publish dense two-page resume and redesigned service canvas [skip ci]'
+          git push origin HEAD:resume-canvas-density-fix
