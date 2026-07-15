@@ -1,0 +1,133 @@
+name: Verify XTIUM print artifacts live
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  verify-live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install verification dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v pdfinfo >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y poppler-utils
+          fi
+          npm init -y >/dev/null 2>&1
+          npm install --silent playwright@1.55.0
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: Verify live bytes, pages, and responsive layout
+        shell: bash
+        env:
+          BASE_URL: https://russelldudek.github.io/XTIUM/
+        run: |
+          set -euo pipefail
+          files=(
+            resume.html
+            service-definition-canvas.html
+            artifact-layout.css
+            docs/Russell-Dudek-XTIUM-Resume.pdf
+            docs/XTIUM-AI-Enabled-Service-Definition-Canvas.pdf
+          )
+          synchronized=false
+          for attempt in $(seq 1 36); do
+            matched=true
+            for file in "${files[@]}"; do
+              mkdir -p "/tmp/live/$(dirname "$file")"
+              if ! curl -fsSL "${BASE_URL}${file}?sha=${GITHUB_SHA}&attempt=${attempt}" -o "/tmp/live/${file}"; then
+                matched=false
+                break
+              fi
+              if ! cmp -s "$file" "/tmp/live/${file}"; then
+                matched=false
+                break
+              fi
+            done
+            if [ "$matched" = true ]; then
+              synchronized=true
+              break
+            fi
+            sleep 10
+          done
+          test "$synchronized" = true
+          test "$(pdfinfo /tmp/live/docs/Russell-Dudek-XTIUM-Resume.pdf | awk '/^Pages:/{print $2}')" = "2"
+          test "$(pdfinfo /tmp/live/docs/XTIUM-AI-Enabled-Service-Definition-Canvas.pdf | awk '/^Pages:/{print $2}')" = "1"
+          cat > /tmp/verify-live.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const base = process.env.BASE_URL;
+          const routes = [
+            ['resume', 'resume.html', '.resume-grid'],
+            ['canvas', 'service-definition-canvas.html', '.canvas-grid']
+          ];
+          const viewports = [
+            ['desktop', 1440, 1000],
+            ['laptop', 1280, 800],
+            ['tablet', 768, 1024],
+            ['mobile', 390, 844]
+          ];
+          const assert = (condition, message) => { if (!condition) throw new Error(message); };
+          const browser = await chromium.launch({ headless: true });
+          for (const [routeName, route, selector] of routes) {
+            for (const [viewportName, width, height] of viewports) {
+              const context = await browser.newContext({ viewport: { width, height } });
+              const page = await context.newPage();
+              const errors = [];
+              page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+              page.on('pageerror', error => errors.push(error.message));
+              const response = await page.goto(`${base}${route}?sha=${process.env.GITHUB_SHA}`, { waitUntil: 'networkidle' });
+              assert(response && response.status() === 200, `${routeName}/${viewportName}: status`);
+              const result = await page.evaluate((requiredSelector) => {
+                const actions = document.querySelector('.doc-actions').getBoundingClientRect();
+                const documentBox = document.querySelector('.document').getBoundingClientRect();
+                return {
+                  required: Boolean(document.querySelector(requiredSelector)),
+                  styles: [...document.styleSheets].map(sheet => sheet.href || 'inline'),
+                  scrollWidth: document.documentElement.scrollWidth,
+                  clientWidth: document.documentElement.clientWidth,
+                  actionsBottom: actions.bottom,
+                  documentTop: documentBox.top
+                };
+              }, selector);
+              assert(result.required, `${routeName}/${viewportName}: required layout missing`);
+              assert(result.styles.some(href => href.includes('artifact-layout.css')), `${routeName}/${viewportName}: artifact CSS missing`);
+              assert(result.scrollWidth <= result.clientWidth + 1, `${routeName}/${viewportName}: horizontal overflow`);
+              assert(errors.length === 0, `${routeName}/${viewportName}: ${errors.join(' | ')}`);
+              if (viewportName === 'mobile') {
+                assert(result.actionsBottom <= result.documentTop + 1, `${routeName}/mobile: actions overlap document title`);
+              }
+              await context.close();
+            }
+          }
+          await browser.close();
+          console.log('Live XTIUM print artifact verification passed.');
+          EOF
+          node /tmp/verify-live.mjs
+      - name: Record successful live verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin resume-canvas-density-fix
+          git checkout -B resume-canvas-density-fix origin/resume-canvas-density-fix
+          printf 'verified_main_commit=%s\nverified_utc=%s\nresume_pages=2\ncanvas_pages=1\nviewports=1440x1000,1280x800,768x1024,390x844\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > live-artifact-verification.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add live-artifact-verification.txt
+          git commit -m 'Record live print artifact verification [skip ci]'
+          git push origin HEAD:resume-canvas-density-fix
