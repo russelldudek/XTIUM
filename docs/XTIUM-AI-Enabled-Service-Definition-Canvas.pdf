@@ -1,0 +1,251 @@
+%PDF-1.4
+%ABCD ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 8 0 R /MediaBox [ 0 0 612 792 ] /Parent 7 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/PageMode /UseNone /Pages 7 0 R /Type /Catalog
+>>
+endobj
+6 0 obj
+<<
+/Author (anonymous) /CreationDate (D:20000101000000+00'00') /Creator (anonymous) /Keywords () /ModDate (D:20000101000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (unspecified) /Title (untitled) /Trapped /False
+>>
+endobj
+7 0 obj
+<<
+/Count 1 /Kids [ 4 0 R ] /Type /Pages
+>>
+endobj
+8 0 obj
+<<
+/Length 5540
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+.066667 .07451 .094118 rg
+BT /F2 20 Tf 24 TL ET
+BT 1 0 0 1 42 744 Tm (Russell Dudek) Tj T* ET
+BT /F2 9 Tf 10.8 TL ET
+.066667 .717647 .701961 rg
+BT 1 0 0 1 42 728 Tm (AI-ENABLED SERVICE DEFINITION CANVAS) Tj T* ET
+BT /F1 8 Tf 9.6 TL ET
+.337255 .380392 .415686 rg
+BT 1 0 0 1 42 715 Tm (Discovery worksheet - illustrative, not an XTIUM internal document) Tj T* ET
+.066667 .07451 .094118 rg
+BT /F2 14 Tf 16.8 TL ET
+BT 1 0 0 1 526.446 740 Tm (XTIUM) Tj T* ET
+1 .478431 0 RG
+3 w
+n 42 704 m 570 704 l S
+BT /F1 7.3 Tf 8.76 TL ET
+.337255 .380392 .415686 rg
+BT 1 0 0 1 42 691 Tm (Pittsburgh, PA - actively relocating to Tampa Bay | 412.287.8640 | russelldudek@gmail.com) Tj T* ET
+BT 1 0 0 1 42 681 Tm (linkedin.com/in/russelldudek | https://russelldudek.github.io/XTIUM/) Tj T* ET
+.933333 .952941 .956863 rg
+n 42 612 528 50 re f*
+1 .478431 0 rg
+n 42 612 4 50 re f*
+.066667 .07451 .094118 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 54 645 Tm (Use) Tj T* ET
+.337255 .380392 .415686 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 54 631 Tm (Select one service workflow. Complete the six fields with frontline, product, security and customer stakeholders. Then test it twice: inside) Tj T* ET
+BT 1 0 0 1 54 621 Tm (XTIUM and in a customer environment.) Tj T* ET
+.933333 .952941 .956863 rg
+n 42 486 258 108 re f*
+.066667 .717647 .701961 rg
+n 42 486 4 108 re f*
+.066667 .07451 .094118 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 54 580 Tm (1. Customer promise) Tj T* ET
+.337255 .380392 .415686 rg
+BT /F1 7.8 Tf 9.36 TL ET
+BT 1 0 0 1 54 567 Tm (Outcome, scope and exclusions) Tj T* ET
+.74902 .788235 .8 RG
+n 54 549 m 288 549 l S
+.74902 .788235 .8 RG
+n 54 534 m 288 534 l S
+.74902 .788235 .8 RG
+n 54 519 m 288 519 l S
+.74902 .788235 .8 RG
+n 54 504 m 288 504 l S
+.933333 .952941 .956863 rg
+n 312 486 258 108 re f*
+1 .478431 0 rg
+n 312 486 4 108 re f*
+.066667 .07451 .094118 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 324 580 Tm (2. Trigger and context) Tj T* ET
+.337255 .380392 .415686 rg
+BT /F1 7.8 Tf 9.36 TL ET
+BT 1 0 0 1 324 567 Tm (Request, telemetry, identity, policy, inventory and history) Tj T* ET
+.74902 .788235 .8 RG
+n 324 549 m 558 549 l S
+.74902 .788235 .8 RG
+n 324 534 m 558 534 l S
+.74902 .788235 .8 RG
+n 324 519 m 558 519 l S
+.74902 .788235 .8 RG
+n 324 504 m 558 504 l S
+.933333 .952941 .956863 rg
+n 42 358 258 108 re f*
+.066667 .717647 .701961 rg
+n 42 358 4 108 re f*
+.066667 .07451 .094118 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 54 452 Tm (3. AI role) Tj T* ET
+.337255 .380392 .415686 rg
+BT /F1 7.8 Tf 9.36 TL ET
+BT 1 0 0 1 54 439 Tm (Retrieve, recommend, generate, predict or act) Tj T* ET
+.74902 .788235 .8 RG
+n 54 421 m 288 421 l S
+.74902 .788235 .8 RG
+n 54 406 m 288 406 l S
+.74902 .788235 .8 RG
+n 54 391 m 288 391 l S
+.74902 .788235 .8 RG
+n 54 376 m 288 376 l S
+.933333 .952941 .956863 rg
+n 312 358 258 108 re f*
+1 .478431 0 rg
+n 312 358 4 108 re f*
+.066667 .07451 .094118 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 324 452 Tm (4. Human authority) Tj T* ET
+.337255 .380392 .415686 rg
+BT /F1 7.8 Tf 9.36 TL ET
+BT 1 0 0 1 324 439 Tm (Approve, interpret, communicate, stop or roll back) Tj T* ET
+.74902 .788235 .8 RG
+n 324 421 m 558 421 l S
+.74902 .788235 .8 RG
+n 324 406 m 558 406 l S
+.74902 .788235 .8 RG
+n 324 391 m 558 391 l S
+.74902 .788235 .8 RG
+n 324 376 m 558 376 l S
+.933333 .952941 .956863 rg
+n 42 230 258 108 re f*
+.066667 .717647 .701961 rg
+n 42 230 4 108 re f*
+.066667 .07451 .094118 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 54 324 Tm (5. Evidence standard) Tj T* ET
+.337255 .380392 .415686 rg
+BT /F1 7.8 Tf 9.36 TL ET
+BT 1 0 0 1 54 311 Tm (Customer value, quality, economics, trust and adoption) Tj T* ET
+.74902 .788235 .8 RG
+n 54 293 m 288 293 l S
+.74902 .788235 .8 RG
+n 54 278 m 288 278 l S
+.74902 .788235 .8 RG
+n 54 263 m 288 263 l S
+.74902 .788235 .8 RG
+n 54 248 m 288 248 l S
+.933333 .952941 .956863 rg
+n 312 230 258 108 re f*
+1 .478431 0 rg
+n 312 230 4 108 re f*
+.066667 .07451 .094118 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 324 324 Tm (6. Ownership and escalation) Tj T* ET
+.337255 .380392 .415686 rg
+BT /F1 7.8 Tf 9.36 TL ET
+BT 1 0 0 1 324 311 Tm (Service, exception, improvement and customer-review owners) Tj T* ET
+.74902 .788235 .8 RG
+n 324 293 m 558 293 l S
+.74902 .788235 .8 RG
+n 324 278 m 558 278 l S
+.74902 .788235 .8 RG
+n 324 263 m 558 263 l S
+.74902 .788235 .8 RG
+n 324 248 m 558 248 l S
+.066667 .07451 .094118 rg
+BT /F2 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 42 212 Tm (TWO-RUN TRANSFER TEST) Tj T* ET
+.066667 .717647 .701961 RG
+1 w
+n 42 208 m 570 208 l S
+.933333 .952941 .956863 rg
+n 42 133 256 62 re f*
+.066667 .717647 .701961 rg
+n 42 133 4 62 re f*
+.066667 .07451 .094118 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 54 178 Tm (Run 01 - Inside XTIUM) Tj T* ET
+.337255 .380392 .415686 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 54 164 Tm (Actual performance, failures, overrides, controls and evidence) Tj T* ET
+BT 1 0 0 1 54 154 Tm (are visible.) Tj T* ET
+.933333 .952941 .956863 rg
+n 310 133 260 62 re f*
+1 .478431 0 rg
+n 310 133 4 62 re f*
+.066667 .07451 .094118 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 322 178 Tm (Run 02 - For the customer) Tj T* ET
+.337255 .380392 .415686 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 164 Tm (Pattern can be explained, adapted, governed, measured and) Tj T* ET
+BT 1 0 0 1 322 154 Tm (owned.) Tj T* ET
+.066667 .07451 .094118 rg
+BT /F2 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 42 118 Tm (DISPOSITION) Tj T* ET
+.066667 .717647 .701961 RG
+1 w
+n 42 114 m 570 114 l S
+BT /F1 9 Tf 10.8 TL ET
+.066667 .07451 .094118 rg
+BT 1 0 0 1 42 101 Tm ([ ] Scale   [ ] Adapt   [ ] Hold pending evidence/ownership   [ ] Stop) Tj T* ET
+ 
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000061 00000 n 
+0000000102 00000 n 
+0000000209 00000 n 
+0000000321 00000 n 
+0000000514 00000 n 
+0000000582 00000 n 
+0000000843 00000 n 
+0000000902 00000 n 
+trailer
+<<
+/ID 
+[<1c178198fbdfa51b25995d89d4102043><1c178198fbdfa51b25995d89d4102043>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 6 0 R
+/Root 5 0 R
+/Size 9
+>>
+startxref
+6493
+%%EOF
